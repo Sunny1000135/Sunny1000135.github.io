@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#F4845F" />
+    <title>TOONHUB — 3D Collectible Hero</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Tailwind (Play CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- ES module resolution -->
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://esm.sh/react@18.2.0",
+          "react-dom": "https://esm.sh/react-dom@18.2.0?external=react",
+          "react-dom/client": "https://esm.sh/react-dom@18.2.0/client?external=react",
+          "lucide-react": "https://esm.sh/lucide-react@0.294.0?external=react"
+        }
+      }
+    </script>
+
+    <style>
+      html,
+      body,
+      #root {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+      body {
+        font-family: 'Inter', sans-serif;
+        overflow: hidden;
+        background: #f4845f;
+      }
+
+      /* Circular nav buttons */
+      .nav-btn {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: 2px solid #fff;
+        color: #fff;
+        cursor: pointer;
+        padding: 0;
+        transition: transform 150ms, background-color 150ms;
+      }
+      .nav-btn:hover {
+        transform: scale(1.08);
+        background-color: rgba(255, 255, 255, 0.12);
+      }
+      @media (min-width: 640px) {
+        .nav-btn {
+          width: 4rem;
+          height: 4rem;
+        }
+      }
+
+      /* Discover link */
+      .discover-link {
+        font-family: 'Anton', sans-serif;
+        font-size: clamp(20px, 4vw, 56px);
+        font-weight: 400;
+        color: #fff;
+        opacity: 0.95;
+        letter-spacing: -0.02em;
+        line-height: 1;
+        text-transform: uppercase;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: opacity 200ms;
+      }
+      .discover-link:hover {
+        opacity: 1;
+      }
+      @media (min-width: 640px) {
+        .discover-link {
+          gap: 0.75rem;
+        }
+      }
+      .discover-link svg {
+        width: 1.25rem;
+        height: 1.25rem;
+      }
+      @media (min-width: 640px) {
+        .discover-link svg {
+          width: 2rem;
+          height: 2rem;
+        }
+      }
+
+      /* Initial loading state */
+      .boot {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="root"><div class="boot">TOONHUB</div></div>
+
+    <!-- JSX compiler -->
+    <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
+
+    <script type="text/babel" data-type="module" data-presets="react">
+      import * as React from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { ArrowLeft, ArrowRight } from 'lucide-react';
+
+      const { useState, useEffect, useRef } = React;
+
+      /* ----------------------------- data ----------------------------- */
+
+      const IMAGES = [
+        {
+          src: 'https://fifth-gentle-45902158.figma.site/_components/v2/4de492f6d9cf8244ad5293233e5c6f52407d42fc/1.02464a56.png',
+          bg: '#F4845F',
+          panel: '#F79B7F',
+        },
+        {
+          src: 'https://fifth-gentle-45902158.figma.site/_components/v2/4de492f6d9cf8244ad5293233e5c6f52407d42fc/2.b977faab.png',
+          bg: '#6BBF7A',
+          panel: '#85CC92',
+        },
+        {
+          src: 'https://fifth-gentle-45902158.figma.site/_components/v2/4de492f6d9cf8244ad5293233e5c6f52407d42fc/3.4df853b4.png',
+          bg: '#E882B4',
+          panel: '#ED9DC4',
+        },
+        {
+          src: 'https://fifth-gentle-45902158.figma.site/_components/v2/4de492f6d9cf8244ad5293233e5c6f52407d42fc/4.4457fbce.png',
+          bg: '#6EB5FF',
+          panel: '#8DC4FF',
+        },
+      ];
+
+      const GRAIN_SVG =
+        "<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>" +
+        "<filter id='n'>" +
+        "<feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/>" +
+        '</filter>' +
+        "<rect width='100%' height='100%' filter='url(%23n)' opacity='0.08'/>" +
+        '</svg>';
+
+      const GRAIN_URI = `url("data:image/svg+xml;utf8,${GRAIN_SVG}")`;
+
+      const EASING = '650ms cubic-bezier(0.4,0,0.2,1)';
+
+      /* --------------------------- component -------------------------- */
+
+      function ToonHubHero() {
+        const [activeIndex, setActiveIndex] = useState(0);
+        const [isAnimating, setIsAnimating] = useState(false);
+        const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+        const timerRef = useRef(null);
+
+        /* Preload all 4 images on mount */
+        useEffect(() => {
+          IMAGES.forEach(({ src }) => {
+            const img = new Image();
+            img.src = src;
+          });
+        }, []);
+
+        /* Responsive breakpoint tracking */
+        useEffect(() => {
+          const onResize = () => setIsMobile(window.innerWidth < 640);
+          window.addEventListener('resize', onResize);
+          return () => window.removeEventListener('resize', onResize);
+        }, []);
+
+        /* Clear pending lock timer on unmount */
+        useEffect(() => {
+          return () => {
+            if (timerRef.current) clearTimeout(timerRef.current);
+          };
+        }, []);
+
+        /* Rotation with animation lock */
+        const navigate = (dir) => {
+          if (isAnimating) return;
+          setIsAnimating(true);
+          setActiveIndex((prev) =>
+            dir === 'next' ? (prev + 1) % IMAGES.length : (prev + 3) % IMAGES.length
+          );
+          timerRef.current = setTimeout(() => setIsAnimating(false), 650);
+        };
+
+        /* Derived roles */
+        const roles = {
+          center: activeIndex,
+          left: (activeIndex + 3) % IMAGES.length,
+          right: (activeIndex + 1) % IMAGES.length,
+          back: (activeIndex + 2) % IMAGES.length,
+        };
+
+        const roleOf = (index) => {
+          if (index === roles.center) return 'center';
+          if (index === roles.left) return 'left';
+          if (index === roles.right) return 'right';
+          return 'back';
+        };
+
+        const getRoleStyle = (role) => {
+          switch (role) {
+            case 'center':
+              return {
+                transform: `translateX(-50%) scale(${isMobile ? 1.25 : 1.68})`,
+                filter: 'blur(0px)',
+                opacity: 1,
+                zIndex: 20,
+                left: '50%',
+                height: isMobile ? '60%' : '92%',
+                bottom: isMobile ? '22%' : 0,
+              };
+            case 'left':
+              return {
+                transform: 'translateX(-50%) scale(1)',
+                filter: 'blur(2px)',
+                opacity: 0.85,
+                zIndex: 10,
+                left: isMobile ? '20%' : '30%',
+                height: isMobile ? '16%' : '28%',
+                bottom: isMobile ? '32%' : '12%',
+              };
+            case 'right':
+              return {
+                transform: 'translateX(-50%) scale(1)',
+                filter: 'blur(2px)',
+                opacity: 0.85,
+                zIndex: 10,
+                left: isMobile ? '80%' : '70%',
+                height: isMobile ? '16%' : '28%',
+                bottom: isMobile ? '32%' : '12%',
+              };
+            case 'back':
+            default:
+              return {
+                transform: 'translateX(-50%) scale(1)',
+                filter: 'blur(4px)',
+                opacity: 1,
+                zIndex: 5,
+                left: '50%',
+                height: isMobile ? '13%' : '22%',
+                bottom: isMobile ? '32%' : '12%',
+              };
+          }
+        };
+
+        const current = IMAGES[activeIndex];
+
+        return (
+          <div
+            className="relative w-full overflow-hidden"
+            style={{
+              backgroundColor: current.bg,
+              transition: `background-color ${EASING}`,
+              fontFamily: "'Inter', sans-serif",
+            }}
+          >
+            <div
+              className="relative w-full"
+              style={{ height: '100vh', overflow: 'hidden' }}
+            >
+              {/* 1. Grain overlay */}
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  zIndex: 50,
+                  opacity: 0.4,
+                  backgroundImage: GRAIN_URI,
+                  backgroundSize: '200px 200px',
+                  backgroundRepeat: 'repeat',
+                }}
+              />
+
+              {/* 2. Giant ghost text */}
+              <div
+                className="absolute inset-x-0 flex items-center justify-center pointer-events-none select-none"
+                style={{ zIndex: 2, top: '18%' }}
+              >
+                <h1
+                  style={{
+                    fontFamily: "'Anton', sans-serif",
+                    fontSize: 'clamp(90px, 28vw, 380px)',
+                    fontWeight: 900,
+                    color: '#fff',
+                    opacity: 1,
+                    lineHeight: 1,
+                    textTransform: 'uppercase',
+                    letterSpacing: '-0.02em',
+                    whiteSpace: 'nowrap',
+                    margin: 0,
+                  }}
+                >
+                  3D SHAPE
+                </h1>
+              </div>
+
+              {/* 3. Brand label */}
+              <div className="absolute top-6 left-4 sm:left-8" style={{ zIndex: 60 }}>
+                <span
+                  className="text-xs font-semibold uppercase"
+                  style={{ color: '#fff', opacity: 0.9, letterSpacing: '0.18em' }}
+                >
+                  TOONHUB
+                </span>
+              </div>
+
+              {/* 4. Carousel */}
+              <div className="absolute inset-0" style={{ zIndex: 3 }}>
+                {IMAGES.map((img, index) => {
+                  const role = roleOf(index);
+                  return (
+                    <div
+                      key={img.src}
+                      style={{
+                        position: 'absolute',
+                        aspectRatio: '0.6 / 1',
+                        transition:
+                          'transform ' + EASING + ', filter ' + EASING +
+                          ', opacity ' + EASING + ', left ' + EASING +
+                          ', height ' + EASING + ', bottom ' + EASING,
+                        willChange: 'transform, filter, opacity',
+                        ...getRoleStyle(role),
+                      }}
+                    >
+                      <img
+                        src={img.src}
+                        alt={`TOONHUB figurine ${index + 1}`}
+                        draggable={false}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain',
+                          objectPosition: 'bottom center',
+                          userSelect: 'none',
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 5. Bottom-left copy + nav */}
+              <div
+                className="absolute bottom-6 left-4 sm:bottom-20 sm:left-24"
+                style={{ zIndex: 60, maxWidth: 320 }}
+              >
+                <p
+                  className="mb-2 sm:mb-3 text-base sm:text-[22px] font-bold uppercase"
+                  style={{ color: '#fff', opacity: 0.95, letterSpacing: '0.02em' }}
+                >
+                  TOONHUB FIGURINES
+                </p>
+
+                <p
+                  className="hidden sm:block text-xs sm:text-sm mb-4 sm:mb-5"
+                  style={{ color: '#fff', opacity: 0.85, lineHeight: 1.6 }}
+                >
+                  The artwork is stunning, shipped fully prepared. The finish is a
+                  vision, the 3D craft is flawless. Many thanks! Wishing you the
+                  win. Order now.
+                </p>
+
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <button
+                    type="button"
+                    className="nav-btn"
+                    aria-label="Previous figurine"
+                    onClick={() => navigate('prev')}
+                  >
+                    <ArrowLeft size={26} strokeWidth={2.25} />
+                  </button>
+                  <button
+                    type="button"
+                    className="nav-btn"
+                    aria-label="Next figurine"
+                    onClick={() => navigate('next')}
+                  >
+                    <ArrowRight size={26} strokeWidth={2.25} />
+                  </button>
+                </div>
+              </div>
+
+              {/* 6. Bottom-right link */}
+              <div
+                className="absolute bottom-6 right-4 sm:bottom-20 sm:right-10"
+                style={{ zIndex: 60 }}
+              >
+                <a href="#" className="discover-link">
+                  DISCOVER IT
+                  <ArrowRight strokeWidth={2.25} />
+                </a>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      /* ---------------------------- bootstrap -------------------------- */
+
+      createRoot(document.getElementById('root')).render(<ToonHubHero />);
+    </script>
+  </body>
+</html>
